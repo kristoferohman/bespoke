@@ -41,6 +41,7 @@ Bespoke.lua         bars, layout, profiles, slash commands
 Options.lua         options window
 tests/
   test_harness.lua  runs the real addon files against a stubbed WoW client
+media/              logo: bespoke.png (2048×2048 original), bespoke.tga (128×128)
 .pkgmeta            packager settings (what's left out of the zip)
 .github/workflows/  CI (test.yml) and releases (release.yml)
 ```

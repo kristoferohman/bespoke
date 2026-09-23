@@ -4,6 +4,7 @@ package-as: Bespoke
 
 ignore:
   - tests
+  - media
   - README.md
   - CHANGELOG.md
 
