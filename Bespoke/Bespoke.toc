@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: Bespoke
+## Notes: Light, stateless action bars for WoW: Forever
+## Version: 1.4.2
+## SavedVariables: BespokeDB
+## IconTexture: Interface\Icons\INV_Drink_05
+## Category: Action Bars
+
+Bespoke.lua
+Options.lua
