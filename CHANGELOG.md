@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.3
+- Releases now publish to CurseForge automatically. No change in game.
+
 ## 1.4.2
 - Faded bars dim to 40% while bars are unlocked instead of staying fully visible, so a fade setting is visible immediately.
 - `/bespoke which` reports the bar's fade setting, lock state and opacity.

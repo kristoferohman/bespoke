@@ -1,0 +1,13 @@
+# BigWigs packager configuration. Files and folders starting with "." are
+# always left out; these are the extra ones players don't need.
+package-as: Bespoke
+
+ignore:
+  - tests
+  - README.md
+  - CHANGELOG.md
+
+# CurseForge shows this file as the changelog (read from the repo, not the zip)
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

@@ -15,7 +15,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y lua5.1
 
       - name: Syntax check
-        run: luac5.1 -p Bespoke/*.lua
+        run: luac5.1 -p *.lua
 
       - name: Run test harness
-        run: lua5.1 tests/test_harness.lua Bespoke/Bespoke.lua
+        run: lua5.1 tests/test_harness.lua Bespoke.lua

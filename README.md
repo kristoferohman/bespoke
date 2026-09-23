@@ -10,7 +10,8 @@ Named profiles shared across characters, with a choice of profile for new charac
 
 ## Install
 
-1. Download `Bespoke-<version>.zip` from the [Releases](../../releases) page.
+1. Install from CurseForge (WoW: Forever), or download `Bespoke-<version>.zip` from the
+   [Releases](../../releases) page.
 2. Unzip it into your Forever client's `Interface/AddOns` folder, so you have
    `Interface/AddOns/Bespoke/Bespoke.toc`. On the beta that's under `_classic_beta_`.
 3. Remove other action bar addons (they'd fight over Blizzard's bars), then log in.
@@ -35,22 +36,25 @@ code and use the addon; you may not redistribute it or publish modified versions
 ## Layout
 
 ```
-Bespoke/            the addon folder, installed as-is
-  Bespoke.toc
-  Bespoke.lua       bars, layout, profiles, slash commands
-  Options.lua       options window
+Bespoke.toc
+Bespoke.lua         bars, layout, profiles, slash commands
+Options.lua         options window
 tests/
   test_harness.lua  runs the real addon files against a stubbed WoW client
+.pkgmeta            packager settings (what's left out of the zip)
 .github/workflows/  CI (test.yml) and releases (release.yml)
 ```
 
+The addon files sit at the repository root because the packager expects the TOC there.
+
 ## Develop
 
-Link the addon folder into the Forever client so edits show up after `/reload`
-(macOS path shown; adjust to your install):
+Link the repository into the Forever client as `Bespoke`, so edits show up after `/reload`
+(macOS path shown; adjust to your install). The client only loads what the TOC lists,
+so the tests and docs in the folder are ignored:
 
 ```sh
-ln -s "$PWD/Bespoke" "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/Bespoke"
+ln -s "$PWD" "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/Bespoke"
 ```
 
 If the client doesn't pick up the symlink, copy the folder instead.
@@ -62,8 +66,8 @@ WoW runs Lua 5.1, so the tests use it too:
 
 ```sh
 brew install lua@5.1        # or: apt-get install lua5.1
-luac5.1 -p Bespoke/*.lua
-lua5.1 tests/test_harness.lua Bespoke/Bespoke.lua
+luac5.1 -p *.lua
+lua5.1 tests/test_harness.lua Bespoke.lua
 ```
 
 The harness loads the real `Bespoke.lua` and `Options.lua` into a stubbed client
@@ -79,16 +83,26 @@ current code, then fix. CI runs the harness on every push.
 
 ## Release
 
-1. Bump `## Version:` in `Bespoke/Bespoke.toc` and add a `CHANGELOG.md` entry.
+1. Bump `## Version:` in `Bespoke.toc` and add a `CHANGELOG.md` entry.
 2. Commit, then tag and push:
 
 ```sh
-git tag v1.4.3
+git tag v1.4.4
 git push origin main --tags
 ```
 
-The release workflow tests, checks the tag matches the TOC version, and attaches
-`Bespoke-1.4.3.zip` to a GitHub release.
+The release workflow tests, checks the tag matches the TOC version, then packages once
+with [BigWigsMods/packager](https://github.com/BigWigsMods/packager) and publishes the
+same zip to CurseForge (as WoW: Forever) and as a GitHub release. CurseForge shows
+`CHANGELOG.md` as the changelog.
+
+One-time setup, already done if CurseForge releases are appearing:
+
+- `## X-Curse-Project-ID: <id>` in `Bespoke.toc` (the number on the CurseForge project page).
+- A CurseForge API token (CurseForge account settings → API tokens) saved as the
+  repository secret `CF_API_KEY` (GitHub → Settings → Secrets and variables → Actions).
+
+The workflow stops with a clear message if either is missing, rather than skipping the upload.
 
 ## Forever notes (verified against client build 69977)
 

@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v1.4.3 to build an installable zip and attach it to a GitHub release.
+# Push a tag like v1.4.3: test, then package once and publish the same zip
+# to CurseForge (WoW: Forever) and as a GitHub release.
 on:
   push:
     tags: ["v*"]
@@ -12,27 +13,36 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the packager reads tags and history
 
       - name: Install Lua 5.1
         run: sudo apt-get update && sudo apt-get install -y lua5.1
 
       - name: Test
         run: |
-          luac5.1 -p Bespoke/*.lua
-          lua5.1 tests/test_harness.lua Bespoke/Bespoke.lua
+          luac5.1 -p *.lua
+          lua5.1 tests/test_harness.lua Bespoke.lua
 
       # Refuse to release if the tag and the TOC disagree (e.g. forgot to bump the TOC)
       - name: Check version
         run: |
-          TOC_VERSION=$(sed -n 's/^## Version: *//p' Bespoke/Bespoke.toc | tr -d '\r')
+          TOC_VERSION=$(sed -n 's/^## Version: *//p' Bespoke.toc | tr -d '\r')
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           echo "TOC $TOC_VERSION, tag $TAG_VERSION"
           test "$TOC_VERSION" = "$TAG_VERSION"
 
-      - name: Package
-        run: zip -r "Bespoke-${GITHUB_REF_NAME#v}.zip" Bespoke
-
-      - name: Publish release
+      # The packager silently skips CurseForge without these; fail loudly instead
+      - name: Check CurseForge setup
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "Bespoke-${GITHUB_REF_NAME#v}.zip" --generate-notes
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          grep -Eq '^## X-Curse-Project-ID: *[0-9]+ *$' Bespoke.toc || { echo "Add '## X-Curse-Project-ID: <id>' to Bespoke.toc"; exit 1; }
+          test -n "$CF_API_KEY" || { echo "Add the CF_API_KEY repository secret"; exit 1; }
+
+      # Pinned: v2.6.1 knows WoW: Forever (interface 16xxx); v2.5.1 did not
+      - name: Package and publish
+        uses: BigWigsMods/packager@v2.6.1
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
