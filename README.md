@@ -10,8 +10,8 @@ Named profiles shared across characters, with a choice of profile for new charac
 
 ## Install
 
-1. Install from CurseForge (WoW: Forever), or download `Bespoke-<version>.zip` from the
-   [Releases](../../releases) page.
+1. Install from CurseForge (WoW: Forever), or download `Bespoke-v<version>-forever.zip`
+   from the [Releases](../../releases) page.
 2. Unzip it into your Forever client's `Interface/AddOns` folder, so you have
    `Interface/AddOns/Bespoke/Bespoke.toc`. On the beta that's under `_classic_beta_`.
 3. Remove other action bar addons (they'd fight over Blizzard's bars), then log in.
