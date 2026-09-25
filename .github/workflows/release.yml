@@ -43,6 +43,10 @@ jobs:
       # Pinned: v2.6.1 knows WoW: Forever (interface 16xxx); v2.5.1 did not
       - name: Package and publish
         uses: BigWigsMods/packager@v2.6.1
+        with:
+          # Zip named Bespoke-v1.4.3.zip, without the default "-forever" flavor suffix.
+          # The trailing ":" keeps the default CurseForge upload label.
+          args: -n "{package-name}-{project-version}:"
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
