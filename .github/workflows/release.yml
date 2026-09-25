@@ -44,9 +44,9 @@ jobs:
       - name: Package and publish
         uses: BigWigsMods/packager@v2.6.1
         with:
-          # Zip named Bespoke-v1.4.3.zip, without the default "-forever" flavor suffix.
-          # The trailing ":" keeps the default CurseForge upload label.
-          args: -n "{package-name}-{project-version}:"
+          # "<zip name>:<CurseForge label>": both just the version, e.g. v1.4.3.zip and
+          # v1.4.3, without the default "Bespoke-" prefix and "-forever" flavor suffix.
+          args: -n "{project-version}:{project-version}"
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

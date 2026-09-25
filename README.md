@@ -10,7 +10,7 @@ Named profiles shared across characters, with a choice of profile for new charac
 
 ## Install
 
-1. Install from CurseForge (WoW: Forever), or download `Bespoke-v<version>.zip`
+1. Install from CurseForge (WoW: Forever), or download `v<version>.zip`
    from the [Releases](../../releases) page.
 2. Unzip it into your Forever client's `Interface/AddOns` folder, so you have
    `Interface/AddOns/Bespoke/Bespoke.toc`. On the beta that's under `_classic_beta_`.
