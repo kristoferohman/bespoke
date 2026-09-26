@@ -7,6 +7,7 @@ Bars: action bars 1–8 (Blizzard's Action Bars 1–8: same spell slots, same ke
 pet bar, stance bar, bag bar and micro menu. Per bar: show/hide, columns or rows,
 grow up/down, scale (40–200%), padding (−2 to 20), fade until mouseover.
 Named profiles shared across characters, with a choice of profile for new characters.
+Optionally, a button turns red when out of range and blue when out of mana.
 
 ## Install
 

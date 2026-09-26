@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.0
+- Option to color the whole button red when out of range and blue when out of mana (Blizzard only reddens the keybind when out of range). Off by default; per profile. In the options window, or `/bespoke color on | off`.
+
 ## 1.4.3
 - Releases now publish to CurseForge automatically. No change in game.
 

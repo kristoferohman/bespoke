@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Bespoke
 ## Notes: Light, stateless action bars for WoW: Forever
-## Version: 1.4.3
+## Version: 1.5.0
 ## X-Curse-Project-ID: 1708592
 ## SavedVariables: BespokeDB
 ## IconTexture: Interface\Icons\INV_Drink_05

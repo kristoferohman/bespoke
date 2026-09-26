@@ -26,6 +26,16 @@ local function NewEnv(opts)
 			f.w, f.h = 45, 45
 			f.attrs.type = "action"; f.attrs["useparent-actionpage"] = true
 			f.UpdateHotkeys = function(self, bt) self.hotkeyType = bt end
+			-- Blizzard: actionpage recalculates self.action; UpdateUsable tints the icon
+			f.SetAttribute = function(self, k, v) Frame.SetAttribute(self, k, v); if k == "actionpage" then self.action = env.slotOf(self) end end
+			f.icon = { SetVertexColor = function(self, r, g, b) self.color = ("%.2f,%.2f,%.2f"):format(r, g, b) end }
+			f.UpdateUsable = function(self)
+				env.usableCalls = env.usableCalls + 1
+				local usable, noMana = env.C_ActionBar.IsUsableAction(self.action)
+				if usable then self.icon:SetVertexColor(1, 1, 1)
+				elseif noMana then self.icon:SetVertexColor(0.5, 0.5, 1)
+				else self.icon:SetVertexColor(0.4, 0.4, 0.4) end
+			end
 		end
 		frames[#frames + 1] = f
 		return f
@@ -245,6 +255,13 @@ local function NewEnv(opts)
 		for k, v in pairs(env.overrides) do if v.owner == owner then env.overrides[k] = nil end end
 	end
 	env.issecurevariable = function() return true end
+	env.usable, env.empty, env.usableCalls = {}, {}, 0 -- slot -> { usable, noMana }; unlisted slots hold a usable action
+	env.C_ActionBar = {
+		HasAction = function(slot) return not env.empty[slot] end,
+		IsUsableAction = function(slot) local s = env.usable[slot]; if s then return s[1], s[2] end return true, false end,
+	}
+	-- Blizzard: out of range only reddens the hotkey; shared with the pet bar
+	env.ActionButton_UpdateRangeIndicator = function(self, checksRange, inRange) self.hotkeyRed = checksRange and not inRange end
 	env.C_Timer = { After = function(_, fn) fn() end }
 	env.tinsert = table.insert
 	env.UISpecialFrames = {}
@@ -293,6 +310,19 @@ local function NewEnv(opts)
 	env.slash = function(msg) env.SlashCmdList.BESPOKE(msg) end
 	-- Blizzard's SecureActionButtonMixin:CalculateAction for an ID > 0 button
 	env.slotOf = function(b) return b:GetID() + ((b:GetAttribute("actionpage") - 1) * 12) end
+	-- Blizzard's range and usable watcher frames pass a slot's event to every button on it
+	local function buttonsOn(slot)
+		local list = {}
+		for _, f in ipairs(frames) do if f.isActionButton and f.action == slot then list[#list + 1] = f end end
+		return list
+	end
+	env.rangeUpdate = function(slot, inRange, checksRange)
+		for _, b in ipairs(buttonsOn(slot)) do env.ActionButton_UpdateRangeIndicator(b, checksRange, inRange) end
+	end
+	env.usableChanged = function(slot, usable, noMana)
+		env.usable[slot] = { usable, noMana }
+		for _, b in ipairs(buttonsOn(slot)) do b:UpdateUsable(slot, usable, noMana) end
+	end
 	return env
 end
 
@@ -892,6 +922,101 @@ rtick(0.5)
 check(R.BespokeBar4:GetAlpha() == 0, "once locked, Bar 4 fades out completely")
 R.slash("which")
 check(printed(R, "fade on, bars locked, opacity 0%%"), "which reports the faded state")
+
+------------------------------------------------------------------ 1.5: color the whole button when out of range or out of mana
+local RED, BLUE = "0.80,0.10,0.10", "0.10,0.30,1.00"                            -- Bespoke's tints
+local NORMAL, FAINT, GREY = "1.00,1.00,1.00", "0.50,0.50,1.00", "0.40,0.40,0.40" -- Blizzard's
+local function profileOf(e) local db = e.BespokeDB; return db.profiles[db.chars[e.charKey]] end
+local K = NewEnv({ files = { ADDON_FILE, OPTIONS_FILE } })
+K.fire("PLAYER_LOGIN")
+local k1, k2, k3 = K.BespokeBar1Button1, K.BespokeBar1Button2, K.BespokeBar1Button3
+check(k1.action == 1 and k2.action == 2, "buttons know their action slot")
+check(profileOf(K).colorButtons == false, "coloring is off by default")
+K.usableChanged(1, true, false)
+K.rangeUpdate(1, false, true)
+check(k1.icon.color == NORMAL and k1.hotkeyRed, "off: out of range only reddens the hotkey, as Blizzard does")
+K.usableChanged(2, false, true)
+check(k2.icon.color == FAINT, "off: out of mana keeps Blizzard's faint blue")
+
+K.slash("color on")
+check(profileOf(K).colorButtons == true, "/bespoke color on saves the setting")
+check(k1.icon.color == RED and k2.icon.color == BLUE, "turning it on colors buttons already out of range or mana")
+K.rangeUpdate(1, true, true)
+check(k1.icon.color == NORMAL and not k1.hotkeyRed, "back in range: Blizzard's normal look")
+K.rangeUpdate(1, false, true)
+check(k1.icon.color == RED, "out of range again: red")
+K.rangeUpdate(1, false, false)
+check(k1.icon.color == NORMAL, "no range check (no target): not colored")
+K.rangeUpdate(2, false, true)
+check(k2.icon.color == RED, "out of range beats out of mana")
+K.rangeUpdate(2, true, true)
+check(k2.icon.color == BLUE, "back in range while out of mana: blue")
+K.usableChanged(2, true, false)
+check(k2.icon.color == NORMAL, "mana back: normal")
+K.usableChanged(3, false, false)
+check(k3.icon.color == GREY, "unusable for other reasons keeps Blizzard's grey")
+K.empty[4] = true
+local calls4 = K.usableCalls
+K.rangeUpdate(4, false, true)
+check(K.usableCalls == calls4, "an empty slot isn't repainted (Blizzard only updates slots with an action)")
+local okPet, errPet = pcall(K.ActionButton_UpdateRangeIndicator, K.PetActionButton1, true, false)
+check(okPet and K.PetActionButton1.hotkeyRed, "pet button range updates pass through to Blizzard untouched (" .. tostring(errPet) .. ")")
+
+-- combat: range and mana change mid-fight; the setting itself doesn't
+K.combat = true
+K.rangeUpdate(1, false, true)
+K.usableChanged(1, false, true)
+check(k1.icon.color == RED, "combat: out of range and out of mana shows red")
+K.rangeUpdate(1, true, true)
+check(k1.icon.color == BLUE, "combat: back in range shows out of mana")
+K.slash("color off")
+check(profileOf(K).colorButtons == true, "the setting can't change in combat")
+K.combat = false
+K.usableChanged(1, true, false)
+
+-- unrelated settings changes don't repaint every button
+local before = K.usableCalls
+K.slash("bar 1 cols 6")
+check(K.usableCalls == before, "a layout change doesn't repaint buttons")
+
+K.slash("bar 6 on")
+K.rangeUpdate(145, false, true)
+check(K.BespokeBar6Button1.icon.color == RED, "a bar enabled later is colored too")
+
+K.rangeUpdate(1, false, true)
+K.usableChanged(2, false, true)
+K.slash("color OFF")
+check(profileOf(K).colorButtons == false, "/bespoke color off (any case) saves the setting")
+check(k1.icon.color == NORMAL and k1.hotkeyRed and k2.icon.color == FAINT, "off again: Blizzard's own look comes back")
+K.slash("help")
+check(printed(K, "/bespoke color on | off", 20), "help lists the color command")
+
+-- per profile: switching repaints
+K.slash("color on")
+K.slash("profile new Plain")
+check(profileOf(K).colorButtons == true, "a new profile copies the setting")
+K.slash("color off")
+K.slash("profile use Default")
+check(k1.icon.color == RED, "switching to a profile with coloring on paints")
+K.slash("profile use Plain")
+check(k1.icon.color == NORMAL, "switching to one with it off restores Blizzard's look")
+
+-- options window checkbox
+K.slash("")
+local colorBox
+for _, f in ipairs(K.frames) do
+	if f.isCheckbox and f.Text.text == "Color whole button when out of range or mana" then colorBox = f end
+end
+check(colorBox and not colorBox.checked, "options: color checkbox shows the setting")
+colorBox:Click()
+check(profileOf(K).colorButtons == true and k1.icon.color == RED, "options: checking it colors the buttons")
+K.slash("color off")
+check(not colorBox.checked, "options: a slash change updates the checkbox")
+
+-- older saved profiles gain the setting, off
+local O = NewEnv({ saved = { chars = {}, profiles = { Default = { version = 2, bars = {} } } } })
+O.fire("PLAYER_LOGIN")
+check(O.BespokeDB.profiles.Default.colorButtons == false, "profiles saved before 1.5 get coloring off")
 
 for i, e in ipairs(ALL_ENVS) do
 	local stray

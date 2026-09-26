@@ -39,6 +39,7 @@ local function Refresh()
 	local cfg = ns.GetBarConfig(selectedBar)
 	widgets.usedBy:SetText(UsedByText(ns.CurrentProfile()))
 	widgets.lock:SetChecked(not ns.IsLocked())
+	widgets.color:SetChecked(ns.ColorButtons())
 	widgets.enabled:SetChecked(cfg.enabled)
 	widgets.fade:SetChecked(cfg.fade)
 	-- the count slider's meaning and range depend on the bar and its layout mode
@@ -143,7 +144,7 @@ end
 
 local function Build()
 	frame = CreateFrame("Frame", "BespokeOptions", UIParent, "BasicFrameTemplateWithInset")
-	frame:SetSize(380, 570)
+	frame:SetSize(380, 598)
 	frame:SetPoint("CENTER")
 	frame:SetFrameStrata("DIALOG")
 	frame:SetMovable(true)
@@ -162,17 +163,18 @@ local function Build()
 	widgets.usedBy = Text("GameFontDisableSmall", "", 24, -88)
 	widgets.newChars = Dropdown("New characters", NewCharactersMenu, -106)
 	widgets.lock = Checkbox("Unlock bars to drag them", -136, function(checked) ns.SetLocked(not checked) end)
+	widgets.color = Checkbox("Color whole button when out of range or mana", -164, ns.SetColorButtons)
 
-	Text("GameFontNormal", "Bars", 20, -180)
-	widgets.bars = Dropdown("Edit", BarMenu, -200)
-	widgets.enabled = Checkbox("Show this bar", -230, function(checked) ns.SetBarOption(selectedBar, "enabled", checked) end)
-	widgets.fade = Checkbox("Fade out until mouseover", -258, function(checked) ns.SetBarOption(selectedBar, "fade", checked) end)
-	widgets.layoutBy = Dropdown("Layout by", ChoiceMenu("layoutBy", { { text = "Columns", value = "columns" }, { text = "Rows", value = "rows" } }), -296)
-	widgets.grow = Dropdown("Grow", ChoiceMenu("growUp", { { text = "Down", value = false }, { text = "Up", value = true } }), -328)
+	Text("GameFontNormal", "Bars", 20, -208)
+	widgets.bars = Dropdown("Edit", BarMenu, -228)
+	widgets.enabled = Checkbox("Show this bar", -258, function(checked) ns.SetBarOption(selectedBar, "enabled", checked) end)
+	widgets.fade = Checkbox("Fade out until mouseover", -286, function(checked) ns.SetBarOption(selectedBar, "fade", checked) end)
+	widgets.layoutBy = Dropdown("Layout by", ChoiceMenu("layoutBy", { { text = "Columns", value = "columns" }, { text = "Rows", value = "rows" } }), -324)
+	widgets.grow = Dropdown("Grow", ChoiceMenu("growUp", { { text = "Down", value = false }, { text = "Up", value = true } }), -356)
 
 	local limits = ns.LIMITS
 	for i, def in ipairs(SLIDERS) do
-		local y = -368 - (i - 1) * 40
+		local y = -396 - (i - 1) * 40
 		def.text = Text("GameFontHighlightSmall", def.label, 24, y - 6)
 		local slider = CreateFrame("Frame", nil, frame, "MinimalSliderWithSteppersTemplate")
 		slider:SetWidth(200)

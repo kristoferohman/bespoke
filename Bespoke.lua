@@ -75,6 +75,7 @@ local function FillDefaults(p)
 		end
 	end
 	p.version = PROFILE_VERSION
+	if p.colorButtons == nil then p.colorButtons = false end
 	for _, id in ipairs(BAR_IDS) do
 		p.bars[id] = p.bars[id] or {}
 		for k, v in pairs(BarDefaults(id)) do
@@ -160,6 +161,51 @@ local function HideBlizzard()
 end
 
 ----------------------------------------------------------------------
+-- Button color: optionally tint the whole icon when its action is out of
+-- range (Blizzard only reddens the hotkey) or out of mana (Blizzard's own
+-- tint is a faint blue). Icon color isn't protected, so this works in combat.
+----------------------------------------------------------------------
+
+local OUT_OF_RANGE_COLOR = { 0.8, 0.1, 0.1 }
+local OUT_OF_MANA_COLOR = { 0.1, 0.3, 1 }
+local outOfRange = {} -- each Bespoke action button -> whether its action is out of range
+local colorApplied = false -- the color setting the buttons were last painted with
+
+-- Runs after Blizzard's UpdateUsable has set its own tint.
+local function PaintButton(button)
+	if not profile.colorButtons then return end
+	local color = outOfRange[button] and OUT_OF_RANGE_COLOR
+	if not color then
+		local _, noMana = C_ActionBar.IsUsableAction(button.action)
+		color = noMana and OUT_OF_MANA_COLOR
+	end
+	if color then button.icon:SetVertexColor(color[1], color[2], color[3]) end
+end
+
+-- Blizzard's tint first, then ours on top (through the UpdateUsable hook).
+-- Blizzard only calls UpdateUsable on a slot that holds an action.
+local function RepaintButton(button)
+	if button.action and C_ActionBar.HasAction(button.action) then button:UpdateUsable() end
+end
+
+-- Blizzard calls this whenever an action goes in or out of range, for its pet
+-- buttons too; only Bespoke's action buttons are tracked.
+local function OnRangeUpdate(button, checksRange, inRange)
+	local was = outOfRange[button]
+	if was == nil then return end
+	local now = (checksRange and not inRange) and true or false
+	if now == was then return end
+	outOfRange[button] = now
+	if profile.colorButtons then RepaintButton(button) end
+end
+
+local function UpdateButtonColors()
+	if profile.colorButtons == colorApplied then return end
+	colorApplied = profile.colorButtons
+	for button in pairs(outOfRange) do RepaintButton(button) end
+end
+
+----------------------------------------------------------------------
 -- Buttons for each bar
 ----------------------------------------------------------------------
 
@@ -192,6 +238,9 @@ local function CreateActionButton(bar, info, i)
 	key:RegisterForClicks("AnyUp", "AnyDown")
 	key:SetScript("PreClick", KeyPreClick)
 	button.key = key
+
+	outOfRange[button] = false
+	hooksecurefunc(button, "UpdateUsable", PaintButton)
 	return button
 end
 
@@ -528,6 +577,7 @@ local function ApplyAll()
 	end
 	UpdateBindings()
 	UpdateFader()
+	UpdateButtonColors()
 	Changed()
 end
 
@@ -579,6 +629,14 @@ function ns.SetBarOption(id, key, value)
 		cfg[key] = math.max(LIMITS[key][1], math.min(LIMITS[key][2], value))
 	end
 	if SIZE_KEYS[key] and bar and cfg.enabled then SavePosition(bar) end
+	ApplyAll()
+end
+
+function ns.ColorButtons() return profile.colorButtons end
+
+function ns.SetColorButtons(on)
+	if not CanChange() then return end
+	profile.colorButtons = not not on
 	ApplyAll()
 end
 
@@ -689,6 +747,7 @@ local HELP = {
 	"/bespoke bar <bar> grow up | down",
 	"/bespoke bar <bar> scale <0.4-2> | padding <-2-20>",
 	"/bespoke bar <bar> fade on | off  - hide until mouseover",
+	"/bespoke color on | off  - color the whole button when out of range or out of mana",
 	"/bespoke reset  - restore the default layout in the current profile",
 	"/bespoke which  - hover something and type this to see what it is",
 	"/bespoke profile  - list profiles and who uses them",
@@ -729,6 +788,8 @@ SlashCmdList.BESPOKE = function(msg)
 		ns.SetLocked(first == "lock")
 	elseif first == "which" then
 		Which()
+	elseif first == "color" and (strlower(rest) == "on" or strlower(rest) == "off") then
+		ns.SetColorButtons(strlower(rest) == "on")
 	elseif first == "reset" then
 		ns.ResetProfile()
 	elseif first == "bar" then
@@ -761,6 +822,7 @@ end
 
 local function Init()
 	HideBlizzard()
+	if ActionButton_UpdateRangeIndicator then hooksecurefunc("ActionButton_UpdateRangeIndicator", OnRangeUpdate) end
 	ApplyAll()
 end
 
