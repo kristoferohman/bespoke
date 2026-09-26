@@ -16,54 +16,6 @@ Optionally, a button turns red when out of range and blue when out of mana.
 2. Unzip it into your Forever client's `Interface/AddOns` folder, so you have
    `Interface/AddOns/Bespoke/Bespoke.toc`. On the beta that's under `_classic_beta_`.
 3. Remove other action bar addons (they'd fight over Blizzard's bars), then log in.
-4. On the Forever beta, set up the [settings fix](#settings-reset-on-the-forever-beta) once.
-
-## Settings reset on the Forever beta
-
-The beta client saves addon settings when you log out or `/reload`, but never loads them
-back. Every login starts from defaults, and the next logout saves those defaults over your
-settings. This hits every addon, and an addon can't fix it from the inside.
-
-The client does still load addon code. So link your settings file into a small helper addon
-of your own, and the client reads your settings through that link. The helper sits in its
-own folder, so CurseForge updates never touch it. Set it up once:
-
-1. Close WoW. If you've never logged in with Bespoke, log in and out once first, so
-   the settings file exists.
-2. Open `WTF/Account/` in your Forever client folder and find your account folder (a name
-   like `123456789#1`, with `SavedVariables/Bespoke.lua` inside). Copy that `Bespoke.lua`
-   somewhere safe as a backup.
-3. Create the helper and the link. Replace `ACCOUNT` with your account folder's name, and
-   the first path with your Forever client folder.
-
-   **macOS** (Terminal):
-
-   ```sh
-   cd '/Applications/World of Warcraft/_classic_beta_'
-   mkdir 'Interface/AddOns/!SavedVariablesFix'
-   printf '## Interface: 16001\n## Title: SavedVariables fix\nBespoke.lua\n' > 'Interface/AddOns/!SavedVariablesFix/!SavedVariablesFix.toc'
-   ln -s "$PWD/WTF/Account/ACCOUNT/SavedVariables/Bespoke.lua" 'Interface/AddOns/!SavedVariablesFix/Bespoke.lua'
-   ```
-
-   **Windows** (Command Prompt, run as administrator):
-
-   ```bat
-   cd /d "C:\Program Files (x86)\World of Warcraft\_classic_beta_"
-   mkdir "Interface\AddOns\!SavedVariablesFix"
-   (echo ## Interface: 16001& echo ## Title: SavedVariables fix& echo Bespoke.lua)> "Interface\AddOns\!SavedVariablesFix\!SavedVariablesFix.toc"
-   mklink "Interface\AddOns\!SavedVariablesFix\Bespoke.lua" "%CD%\WTF\Account\ACCOUNT\SavedVariables\Bespoke.lua"
-   ```
-
-4. Log in and check that "SavedVariables fix" is enabled in the AddOns list. Change a
-   setting in `/bespoke`, then `/reload`. The change should still be there.
-
-It has to be a link, not a copy: a copy goes stale after your next logout. For another
-addon, add a link to its file in the same `SavedVariables` folder, and add that file's
-name as a line in the `.toc`. The `!` makes the helper load before other addons, since
-some of them read their settings as soon as they load. If your settings already reset,
-`Bespoke.lua.bak` next to `Bespoke.lua` may still hold the save before that. Close WoW
-and copy it over `Bespoke.lua` before step 3. Once Blizzard fixes the client, delete the
-`!SavedVariablesFix` folder.
 
 ## Use
 
