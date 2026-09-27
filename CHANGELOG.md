@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.5.1
+## 1.6.0
+- Bag bar: choose whether bags 1–4 and the reagent bag show; the backpack and key ring always do. In the options window, or `/bespoke bar bags slots on | off` and `/bespoke bar bags reagent on | off`.
+- Bag bar: choose which side of the backpack the bags go, `/bespoke bar bags grow left | right`. The backpack now stays put when the bar gets wider or narrower.
 - Stance buttons show their keybind, like pet buttons (Blizzard never labels stance buttons).
 
 ## 1.5.0

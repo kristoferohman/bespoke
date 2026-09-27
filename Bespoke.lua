@@ -38,7 +38,7 @@ local DEFAULTS = {
 	{ enabled = false, point = "BOTTOM", x = 0,   y = 265, columns = 12 },
 	pet    = { enabled = true, point = "BOTTOM",      x = 160,  y = 167, columns = 10 },
 	stance = { enabled = true, point = "BOTTOM",      x = -200, y = 167, columns = 10 },
-	bags   = { enabled = true, point = "BOTTOMRIGHT", x = -5,   y = 5,   columns = 14 },
+	bags   = { enabled = true, point = "BOTTOMRIGHT", x = -5,   y = 5,   columns = 14, growLeft = true, showBags = true, showReagent = true },
 	micro  = { enabled = true, point = "BOTTOMRIGHT", x = -5,   y = 55,  columns = 14 },
 }
 local SHARED_DEFAULTS = { scale = 1, padding = 2, growUp = false, layoutBy = "columns", rows = 1, fade = false }
@@ -262,6 +262,28 @@ local function CapacityButtons(bar)
 	return BlizzardButtons(StanceBar, "StanceButton", 10)
 end
 
+-- Every bag button, in Blizzard's order from the backpack outward.
+local function AllBagButtons()
+	local all = { MainMenuBarBackpackButton }
+	if MainMenuBarBagManager then
+		for _, button in MainMenuBarBagManager:EnumerateBagButtons() do
+			if button ~= MainMenuBarBackpackButton then all[#all + 1] = button end
+		end
+	end
+	return all
+end
+
+-- The bag bar's settings can leave out bags 1-4 and the reagent bag;
+-- the backpack and key ring always show.
+local function BagWanted(button)
+	local cfg = profile.bars.bags
+	if button == CharacterReagentBag0Slot then return cfg.showReagent end
+	for i = 0, 3 do
+		if button == _G["CharacterBag" .. i .. "Slot"] then return cfg.showBags end
+	end
+	return true
+end
+
 -- Buttons currently laid out on a bar, in order.
 local function GetButtons(bar)
 	local id = bar.id
@@ -272,16 +294,9 @@ local function GetButtons(bar)
 	elseif id == "stance" then
 		return BlizzardButtons(StanceBar, "StanceButton", GetNumShapeshiftForms() or 0)
 	elseif id == "bags" then
-		-- Blizzard shows bags right to left from the backpack; keep that look.
-		local all = { MainMenuBarBackpackButton }
-		if MainMenuBarBagManager then
-			for _, button in MainMenuBarBagManager:EnumerateBagButtons() do
-				if button ~= MainMenuBarBackpackButton then all[#all + 1] = button end
-			end
-		end
 		local list = {}
-		for i = #all, 1, -1 do
-			if all[i] and all[i]:IsShown() then list[#list + 1] = all[i] end
+		for _, button in ipairs(AllBagButtons()) do
+			if button:IsShown() and BagWanted(button) then list[#list + 1] = button end
 		end
 		return list
 	elseif id == "micro" then
@@ -328,6 +343,11 @@ local function AdoptAll(bar)
 		for i, button in ipairs(BlizzardButtons(StanceBar, "StanceButton", 10)) do
 			button:SetParent(i <= forms and bar or hider)
 		end
+	elseif bar.id == "bags" then
+		-- Bags the settings leave out wait out of sight too.
+		for _, button in ipairs(AllBagButtons()) do
+			if not BagWanted(button) then button:SetParent(hider) end
+		end
 	elseif bar.id == "micro" then
 		AdoptMicroButtons(bar)
 	end
@@ -348,16 +368,22 @@ local function Grid(cfg, n)
 	return cols, math.ceil(n / cols)
 end
 
--- Anchor the bar at the corner its growth moves away from, in screen units,
--- so extra rows extend in the chosen direction and scaling doesn't drift.
+-- The corner a bar grows away from. Only the bag bar can grow left, so its
+-- backpack sits at the corner.
+local function GrowthCorner(cfg)
+	return (cfg.growUp and "BOTTOM" or "TOP") .. (cfg.growLeft and "RIGHT" or "LEFT")
+end
+
+-- Anchor the bar at its growth corner, in screen units, so extra buttons
+-- and rows extend in the chosen direction and scaling doesn't drift.
 local function SavePosition(bar)
 	local cfg = profile.bars[bar.id]
 	local left = bar:GetLeft()
 	if not left then return end
 	local s = bar:GetScale()
-	cfg.point = cfg.growUp and "BOTTOMLEFT" or "TOPLEFT"
+	cfg.point = GrowthCorner(cfg)
 	cfg.relPoint = "BOTTOMLEFT"
-	cfg.x = left * s
+	cfg.x = (cfg.growLeft and bar:GetRight() or left) * s
 	cfg.y = (cfg.growUp and bar:GetBottom() or bar:GetTop()) * s
 end
 
@@ -423,6 +449,9 @@ end
 
 local function LayoutBar(bar)
 	local cfg = profile.bars[bar.id]
+	-- Profiles from before 1.6 anchor the bag bar by its left edge; move the
+	-- anchor to the backpack's side before its width changes.
+	if cfg.growLeft and cfg.point:find("LEFT") then SavePosition(bar) end
 	AdoptAll(bar)
 	local buttons = GetButtons(bar)
 	-- Pet and stance bars size their cells from all 10 Blizzard buttons, and while
@@ -440,15 +469,12 @@ local function LayoutBar(bar)
 	local cols, rows = Grid(cfg, slots)
 	bar.cols, bar.rows = cols, rows
 	local stepX, stepY = cw + cfg.padding, ch + cfg.padding
+	local corner = GrowthCorner(cfg)
 	local function place(frame, i)
 		local cx = ((i - 1) % cols) * stepX + cw / 2
 		local cy = math.floor((i - 1) / cols) * stepY + ch / 2
 		frame:ClearAllPoints()
-		if cfg.growUp then
-			frame:SetPoint("CENTER", bar, "BOTTOMLEFT", cx, cy)
-		else
-			frame:SetPoint("CENTER", bar, "TOPLEFT", cx, -cy)
-		end
+		frame:SetPoint("CENTER", bar, corner, cfg.growLeft and -cx or cx, cfg.growUp and cy or -cy)
 	end
 	for i, button in ipairs(buttons) do
 		button:SetParent(bar)
@@ -623,12 +649,14 @@ function ns.ProfileUsers(name)
 	return users
 end
 
-local SIZE_KEYS = { columns = true, rows = true, layoutBy = true, padding = true, scale = true, growUp = true }
+local SIZE_KEYS = { columns = true, rows = true, layoutBy = true, padding = true, scale = true, growUp = true,
+	growLeft = true, showBags = true, showReagent = true }
+local ON_OFF_KEYS = { enabled = true, growUp = true, growLeft = true, fade = true, showBags = true, showReagent = true }
 
 function ns.SetBarOption(id, key, value)
 	if not CanChange() then return end
 	local cfg, bar = profile.bars[id], bars[id]
-	if key == "enabled" or key == "growUp" or key == "fade" then
+	if ON_OFF_KEYS[key] then
 		cfg[key] = not not value
 	elseif key == "layoutBy" then
 		-- keep the bar looking the same when switching what you count
@@ -755,6 +783,9 @@ local HELP = {
 	"/bespoke bar <1-8 | pet | stance | bags | micro> on | off",
 	"/bespoke bar <bar> cols <n> | rows <n>  - lay out by columns or by rows",
 	"/bespoke bar <bar> grow up | down",
+	"/bespoke bar bags grow left | right  - which side of the backpack the bags go",
+	"/bespoke bar bags slots on | off  - show bags 1-4 (backpack and key ring always show)",
+	"/bespoke bar bags reagent on | off  - show the reagent bag",
 	"/bespoke bar <bar> scale <0.4-2> | padding <-2-20>",
 	"/bespoke bar <bar> fade on | off  - hide until mouseover",
 	"/bespoke color on | off  - color the whole button when out of range or out of mana",
@@ -810,6 +841,10 @@ SlashCmdList.BESPOKE = function(msg)
 			ns.SetBarOption(id, "enabled", b == "on")
 		elseif b == "grow" and (c == "up" or c == "down") then
 			ns.SetBarOption(id, "growUp", c == "up")
+		elseif id == "bags" and b == "grow" and (c == "left" or c == "right") then
+			ns.SetBarOption(id, "growLeft", c == "left")
+		elseif id == "bags" and (b == "slots" or b == "reagent") and (c == "on" or c == "off") then
+			ns.SetBarOption(id, b == "slots" and "showBags" or "showReagent", c == "on")
 		elseif (b == "cols" or b == "rows") and tonumber(c) then
 			local key = (b == "cols") and "columns" or "rows"
 			ns.SetBarOption(id, "layoutBy", key) -- switch mode first; switching copies the current count

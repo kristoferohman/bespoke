@@ -117,10 +117,12 @@ local function NewEnv(opts)
 		return left, bottom, bottom + self.h
 	end
 	function Frame:GetLeft() return (self:Rect()) end
+	function Frame:GetRight() local left = self:Rect(); return left and left + self.w end
 	function Frame:GetBottom() local _, b = self:Rect(); return b end
 	function Frame:GetTop() local _, _, t = self:Rect(); return t end
 	function Frame:SetFrameStrata(v) self.strata = v end
 	function Frame:SetWidth(w) self.w = w end
+	function Frame:SetHeight(h) self.h = h end
 	function Frame:SetText(t) self.text = t end
 	function Frame:SetChecked(v) self.checked = not not v end
 	function Frame:GetChecked() return self.checked end
@@ -142,7 +144,7 @@ local function NewEnv(opts)
 	function Frame:SetValue(v) if v ~= self.value then self.value = v; if self.cb then self.cb(self.cbOwner, v) end end end
 	function Frame:CreateTexture() return { SetAllPoints = function() end, SetColorTexture = function() end } end
 	function Frame:CreateFontString()
-		local fs = { SetPoint = function() end, SetText = function(self, t) self.text = t end }
+		local fs = { SetPoint = function() end, SetText = function(self, t) self.text = t end, SetShown = function(self, v) self.shown = v end }
 		env.fontStrings = env.fontStrings or {}
 		env.fontStrings[#env.fontStrings + 1] = fs
 		return fs
@@ -1040,6 +1042,93 @@ check(H.StanceButton2.HotKey.text == "Z" and H.StanceButton2.HotKey.shown, "a ne
 check(not H.StanceButton1.HotKey.shown, "an unbound stance loses its label")
 H.combat = false
 H.fire("PLAYER_REGEN_ENABLED")
+
+------------------------------------------------------------------ 1.6: bag bar slots and direction
+-- a button's center on screen, from the screen's left edge (bars at scale 1)
+local function centerX(b)
+	local p = b.points[1]
+	return p[2]:GetLeft() + (p[3]:find("RIGHT") and p[2].w or 0) + p[4]
+end
+local SHORT = { MainMenuBarBackpackButton = "pack", CharacterBag0Slot = "b1", CharacterBag1Slot = "b2", CharacterBag2Slot = "b3",
+	CharacterBag3Slot = "b4", CharacterReagentBag0Slot = "reagent", KeyRingButton = "keys" }
+-- the bag buttons visible on Bespoke's bag bar, left to right
+local function bagRow(e)
+	local list = {}
+	for name in pairs(SHORT) do
+		local b = e[name]
+		if b.parent == e.BespokeBarbags and b:IsVisible() then list[#list + 1] = b end
+	end
+	table.sort(list, function(a, b) return centerX(a) < centerX(b) end)
+	for i, b in ipairs(list) do list[i] = SHORT[b.name] end
+	return table.concat(list, " ")
+end
+
+local Q = NewEnv({ files = { ADDON_FILE, OPTIONS_FILE } })
+Q.KeyRingButton.shown = false -- no keys yet: Blizzard hides the key ring
+Q.fire("PLAYER_LOGIN")
+local qb = Q.BespokeBarbags
+check(bagRow(Q) == "reagent b4 b3 b2 b1 pack", "default: every bag, backpack on the right (" .. bagRow(Q) .. ")")
+local pack0 = centerX(Q.MainMenuBarBackpackButton)
+Q.slash("bar bags slots off")
+check(bagRow(Q) == "reagent pack", "slots off: bags 1-4 leave the bar (" .. bagRow(Q) .. ")")
+check(not Q.CharacterBag0Slot:IsVisible() and not Q.CharacterBag3Slot:IsVisible(), "and wait out of sight")
+check(math.abs(centerX(Q.MainMenuBarBackpackButton) - pack0) < 1e-6, "the backpack stays put when the bar shrinks")
+Q.BagsBar:Layout()
+check(bagRow(Q) == "reagent pack", "Blizzard's bag re-layout doesn't bring them back (" .. bagRow(Q) .. ")")
+Q.slash("bar bags reagent off")
+check(bagRow(Q) == "pack", "reagent off too: just the backpack (" .. bagRow(Q) .. ")")
+Q.KeyRingButton.shown = true -- first key looted
+Q.BagsBar:Layout()
+check(bagRow(Q) == "keys pack", "the key ring always shows once the game shows it (" .. bagRow(Q) .. ")")
+check(math.abs(centerX(Q.MainMenuBarBackpackButton) - pack0) < 1e-6, "the backpack stays put when the key ring appears")
+Q.slash("bar bags grow right")
+check(bagRow(Q) == "pack keys", "grow right: backpack on the left (" .. bagRow(Q) .. ")")
+local qLeft = qb:GetLeft()
+Q.slash("bar bags slots on")
+check(bagRow(Q) == "pack b1 b2 b3 b4 keys", "growing right, bags extend right of the backpack (" .. bagRow(Q) .. ")")
+check(math.abs(qb:GetLeft() - qLeft) < 1e-6, "growing right: left edge fixed")
+Q.slash("bar bags reagent on")
+Q.slash("bar bags grow left")
+check(bagRow(Q) == "keys reagent b4 b3 b2 b1 pack", "back to the default look (" .. bagRow(Q) .. ")")
+Q.slash("bar 1 grow left")
+check(P(Q)[1].growLeft == nil, "left/right is only for the bag bar")
+
+-- options window: the bag settings show only for the bag bar
+Q.slash("")
+local qBars, qSide, qBox = nil, nil, {}
+for _, f in ipairs(Q.frames) do
+	if f.gen and item(f.menu, "Bag bar") then qBars = f end
+	if f.gen and item(f.menu, "Left") then qSide = f end
+	if f.isCheckbox then qBox[f.Text.text] = f end
+end
+local qSlots, qReagent = qBox["Show bags 1-4"], qBox["Show reagent bag"]
+check(qSide and qSlots and qReagent, "options: bag bar settings exist")
+item(qBars.menu, "Bar 1").set()
+check(not qSide.shown and not qSlots.shown and not qReagent.shown, "options: bag settings hidden for other bars")
+local shortWindow = Q.BespokeOptions.h
+item(qBars.menu, "Bag bar").set()
+check(qSide.shown and qSlots.shown and qSlots.checked and qReagent.checked, "options: bag settings shown for the bag bar")
+check(Q.BespokeOptions.h > shortWindow, "options: the window grows to fit them")
+qSlots:Click()
+check(P(Q).bags.showBags == false and bagRow(Q) == "keys reagent pack", "options: unchecking bags 1-4 hides them (" .. bagRow(Q) .. ")")
+qReagent:Click()
+check(P(Q).bags.showReagent == false and bagRow(Q) == "keys pack", "options: unchecking the reagent bag hides it")
+item(qSide.menu, "Right").set()
+check(P(Q).bags.growLeft == false and selectedRadio(qSide.menu) == "Right" and bagRow(Q) == "pack keys", "options: grow sideways dropdown")
+Q.slash("reset")
+check(bagRow(Q) == "keys reagent b4 b3 b2 b1 pack" and qSlots.checked and qReagent.checked, "reset brings every bag back, backpack on the right")
+
+-- profiles from before 1.6 anchored the bag bar by its left edge
+local QO = NewEnv({ saved = { chars = {}, profiles = { Default = { version = 2,
+	bars = { bags = { enabled = true, point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = 700, y = 60 } } } } } })
+QO.KeyRingButton.shown = false
+QO.fire("PLAYER_LOGIN")
+local qo0 = centerX(QO.MainMenuBarBackpackButton)
+QO.KeyRingButton.shown = true
+QO.BagsBar:Layout()
+check(math.abs(centerX(QO.MainMenuBarBackpackButton) - qo0) < 1e-6, "an older profile's backpack stays put when the key ring appears")
+local qoCfg = P(QO).bags
+check(qoCfg.point == "TOPRIGHT" and qoCfg.showBags and qoCfg.showReagent and qoCfg.growLeft, "older profiles gain the bag settings, anchored on the backpack's side")
 
 for i, e in ipairs(ALL_ENVS) do
 	local stray

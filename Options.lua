@@ -23,6 +23,8 @@ local SLIDERS = {
 
 local function CountKey(cfg) return cfg.layoutBy == "rows" and "rows" or "columns" end
 
+local HEIGHT, BAGS_HEIGHT = 598, 660 -- the window grows to fit the bag bar's own settings
+
 local function UsedByText(name)
 	local users = ns.ProfileUsers(name)
 	if #users == 0 then return "Used by: no characters" end
@@ -42,6 +44,11 @@ local function Refresh()
 	widgets.color:SetChecked(ns.ColorButtons())
 	widgets.enabled:SetChecked(cfg.enabled)
 	widgets.fade:SetChecked(cfg.fade)
+	local bags = selectedBar == "bags"
+	for _, w in ipairs(widgets.bagsOnly) do w:SetShown(bags) end
+	frame:SetHeight(bags and BAGS_HEIGHT or HEIGHT)
+	widgets.showBags:SetChecked(cfg.showBags)
+	widgets.showReagent:SetChecked(cfg.showReagent)
 	-- the count slider's meaning and range depend on the bar and its layout mode
 	local key = CountKey(cfg)
 	local max = math.max(2, ns.ButtonCount(selectedBar))
@@ -125,13 +132,13 @@ local function Text(template, text, x, y)
 end
 
 local function Dropdown(label, generator, y)
-	Text("GameFontHighlightSmall", label, 24, y - 6)
+	local text = Text("GameFontHighlightSmall", label, 24, y - 6)
 	local dd = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
 	dd:SetWidth(200)
 	dd:SetPoint("TOPLEFT", 130, y)
 	dd:SetupMenu(generator)
 	table.insert(widgets.dropdowns, dd)
-	return dd
+	return dd, text
 end
 
 local function Checkbox(text, y, onClick)
@@ -144,7 +151,7 @@ end
 
 local function Build()
 	frame = CreateFrame("Frame", "BespokeOptions", UIParent, "BasicFrameTemplateWithInset")
-	frame:SetSize(380, 598)
+	frame:SetSize(380, HEIGHT)
 	frame:SetPoint("CENTER")
 	frame:SetFrameStrata("DIALOG")
 	frame:SetMovable(true)
@@ -190,6 +197,13 @@ local function Build()
 		end, slider)
 		def.slider = slider
 	end
+
+	-- Bag bar only: shown when it's the bar being edited.
+	local sideways, sidewaysLabel = Dropdown("Grow sideways",
+		ChoiceMenu("growLeft", { { text = "Left", value = true }, { text = "Right", value = false } }), -516)
+	widgets.showBags = Checkbox("Show bags 1-4", -548, function(checked) ns.SetBarOption("bags", "showBags", checked) end)
+	widgets.showReagent = Checkbox("Show reagent bag", -576, function(checked) ns.SetBarOption("bags", "showReagent", checked) end)
+	widgets.bagsOnly = { sideways, sidewaysLabel, widgets.showBags, widgets.showReagent }
 
 	local reset = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 	reset:SetSize(160, 24)
