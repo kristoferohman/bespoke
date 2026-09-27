@@ -67,9 +67,18 @@ Remove any other `Bespoke` folder in `AddOns` first.
 WoW runs Lua 5.1, so the tests use it too:
 
 ```sh
-brew install lua@5.1        # or: apt-get install lua5.1
+apt-get install lua5.1
 luac5.1 -p *.lua
 lua5.1 tests/test_harness.lua Bespoke.lua
+```
+
+Homebrew no longer has Lua 5.1; on macOS use LuaJIT, which is 5.1-compatible
+(CI still runs the real 5.1):
+
+```sh
+brew install luajit
+for f in *.lua; do luajit -b "$f" /dev/null; done
+luajit tests/test_harness.lua Bespoke.lua
 ```
 
 The harness loads the real `Bespoke.lua` and `Options.lua` into a stubbed client

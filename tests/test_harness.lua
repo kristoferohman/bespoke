@@ -167,6 +167,7 @@ local function NewEnv(opts)
 		local sb = sized("StanceButton" .. i, env.StanceBar, 30, 30)
 		sb:SetPoint("CENTER", env.StanceBar, "CENTER", i * 32, 0) -- Blizzard anchors each to its container
 		sb.shown = false
+		sb.HotKey = make("FontString", nil, sb) -- Blizzard never sets its text on stance buttons
 		env.StanceBar.actionButtons[i] = sb
 	end
 	-- Blizzard: Edit Mode force-shows all 10; with 0 forms nothing hides them again
@@ -248,6 +249,11 @@ local function NewEnv(opts)
 	env.GetMouseFoci = function() return { env.mouseFocus or env.WorldFrame } end
 	env.InCombatLockdown = function() return env.combat end
 	env.GetBindingKey = function(cmd) local k = env.bindings[cmd]; if k then return unpack(k) end end
+	-- Blizzard: "" for no key; abbreviated, SHIFT-1 reads s-1
+	env.GetBindingText = function(key, abbreviate)
+		if not key then return "" end
+		return abbreviate and (key:gsub("SHIFT%-", "s-")) or key
+	end
 	env.SetOverrideBindingClick = function(owner, _, key, name, button)
 		env.overrides[key] = { owner = owner, name = name, button = button }; env.overrideCalls = env.overrideCalls + 1
 	end
@@ -1017,6 +1023,23 @@ check(not colorBox.checked, "options: a slash change updates the checkbox")
 local O = NewEnv({ saved = { chars = {}, profiles = { Default = { version = 2, bars = {} } } } })
 O.fire("PLAYER_LOGIN")
 check(O.BespokeDB.profiles.Default.colorButtons == false, "profiles saved before 1.5 get coloring off")
+
+------------------------------------------------------------------ 1.5.1: stance keybind labels
+-- Blizzard labels pet buttons with their keybind but never stance buttons.
+local H = NewEnv({ bindings = { SHAPESHIFTBUTTON1 = { "SHIFT-1" }, SHAPESHIFTBUTTON3 = { "F3", "F4" } } })
+H.fire("PLAYER_LOGIN")
+check(H.StanceButton1.HotKey.text == "s-1" and H.StanceButton1.HotKey.shown, "stance button shows its keybind, abbreviated like Blizzard's")
+check(H.StanceButton3.HotKey.text == "F3" and H.StanceButton3.HotKey.shown, "first of several keys")
+check(not H.StanceButton2.HotKey.shown, "unbound stance shows no label")
+H.combat = true
+H.fire("PLAYER_REGEN_DISABLED")
+H.bindings.SHAPESHIFTBUTTON2 = { "Z" }
+H.bindings.SHAPESHIFTBUTTON1 = nil
+H.fire("UPDATE_BINDINGS")
+check(H.StanceButton2.HotKey.text == "Z" and H.StanceButton2.HotKey.shown, "a new stance keybind shows at once, even in combat")
+check(not H.StanceButton1.HotKey.shown, "an unbound stance loses its label")
+H.combat = false
+H.fire("PLAYER_REGEN_ENABLED")
 
 for i, e in ipairs(ALL_ENVS) do
 	local stray

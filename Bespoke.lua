@@ -492,6 +492,16 @@ end
 -- Action Bar N. Pet and stance buttons are Blizzard's, so theirs just work.
 ----------------------------------------------------------------------
 
+-- Blizzard labels pet buttons with their key but never stance buttons.
+-- Text isn't protected, so this also works in combat.
+local function UpdateStanceHotkeys()
+	for i, button in ipairs(BlizzardButtons(StanceBar, "StanceButton", 10)) do
+		local text = GetBindingText(GetBindingKey("SHAPESHIFTBUTTON" .. i), true)
+		button.HotKey:SetText(text)
+		button.HotKey:SetShown(text ~= "")
+	end
+end
+
 local function UpdateBindings()
 	if InCombatLockdown() then pending.bindings = true return end
 	-- SetOverrideBinding fires UPDATE_BINDINGS; skip when nothing changed
@@ -824,6 +834,7 @@ local function Init()
 	HideBlizzard()
 	if ActionButton_UpdateRangeIndicator then hooksecurefunc("ActionButton_UpdateRangeIndicator", OnRangeUpdate) end
 	ApplyAll()
+	UpdateStanceHotkeys()
 end
 
 local events = CreateFrame("Frame")
@@ -846,6 +857,7 @@ events:SetScript("OnEvent", function(_, event)
 		if pending.bindings then pending.bindings = nil; UpdateBindings() end
 	elseif event == "UPDATE_BINDINGS" then
 		UpdateBindings()
+		UpdateStanceHotkeys()
 	elseif event == "UPDATE_SHAPESHIFT_FORMS" then
 		Relayout("stance")
 	end
