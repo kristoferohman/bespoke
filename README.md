@@ -25,7 +25,11 @@ Optionally, a button turns red when out of range and blue when out of mana.
 - `/bespoke unlock` shows every bar with a label so you can drag it; `/bespoke lock` when done.
   Pet and stance bars preview all 10 slots while unlocked, on any character.
 - Keybinds: bind keys to Blizzard's "Action Bar 1–8" entries in the normal Keybindings
-  menu (or Quick Keybind mode); Bespoke's bars use them. Pet and stance keybinds work as usual.
+  menu (or Quick Keybind mode); Bespoke's bars use them. Pet and stance keybinds work as usual,
+  and show on the buttons (Blizzard leaves them off stance buttons; Bespoke adds them).
+- Bag bar: pick "Bag bar" in the options window to choose whether bags 1–4 and the reagent
+  bag show, and which side of the backpack the bags go. The backpack stays put as the bar
+  changes size. To put a new bag in a hidden slot, show the slots again first.
 - Profiles are shared by all characters on the account. Each character picks its own,
   and you choose which profile new characters start on.
 - `/bespoke help` lists all slash commands; `/bespoke which` names whatever is under the mouse.
