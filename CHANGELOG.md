@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.0
+- Bar 1 changes with forms, stances and stealth, like Blizzard's main bar: druid cat, bear and prowl, warrior stances, rogue stealth. Keybinds use what's showing, in combat too. Bars 2–8 are unchanged.
+
 ## 1.6.0
 - Bag bar: choose whether bags 1–4 and the reagent bag show; the backpack and key ring always do. In the options window, or `/bespoke bar bags slots on | off` and `/bespoke bar bags reagent on | off`.
 - Bag bar: choose which side of the backpack the bags go, `/bespoke bar bags grow left | right`. The backpack now stays put when the bar gets wider or narrower.

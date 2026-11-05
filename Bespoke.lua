@@ -1,17 +1,20 @@
 -- Bespoke: light, stateless bars for WoW: Forever.
 --
--- Action buttons are Blizzard's own ActionBarButtonTemplate with a fixed
+-- Action buttons are Blizzard's own ActionBarButtonTemplate with an
 -- "actionpage", so Blizzard's secure code resolves the slot and draws
--- everything. There is no paging and no state, so no secure snippets.
+-- everything. Bars 2-8 have a fixed page; bar 1's follows forms and stances,
+-- set by Blizzard's state driver. No secure snippets anywhere.
 -- Pet, stance, bag and micro menu bars reuse Blizzard's own buttons.
 local ADDON, ns = ...
 
 local ACTION_BUTTONS = 12
 local PET_VISIBILITY = "[@pet,exists,nopossessbar] show; hide"
+-- Like Blizzard's main bar: bonus bar N (forms, stances, stealth) replaces page 1 with page 6 + N.
+local FORM_PAGES = "[bonusbar:1]7;[bonusbar:2]8;[bonusbar:3]9;[bonusbar:4]10;[bonusbar:5]11;"
 
 -- Action bar N matches Blizzard's "Action Bar N": same slots, same keybindings.
 local ACTION = {
-	{ page = 1,  binding = "ACTIONBUTTON",          blizzBar = "MainActionBar",       blizzButton = "ActionButton" },
+	{ page = 1,  binding = "ACTIONBUTTON",          blizzBar = "MainActionBar",       blizzButton = "ActionButton", followsForms = true },
 	{ page = 6,  binding = "MULTIACTIONBAR1BUTTON", blizzBar = "MultiBarBottomLeft",  blizzButton = "MultiBarBottomLeftButton" },
 	{ page = 5,  binding = "MULTIACTIONBAR2BUTTON", blizzBar = "MultiBarBottomRight", blizzButton = "MultiBarBottomRightButton" },
 	{ page = 3,  binding = "MULTIACTIONBAR3BUTTON", blizzBar = "MultiBarRight",       blizzButton = "MultiBarRightButton" },
@@ -225,14 +228,21 @@ local function CreateActionButton(bar, info, i)
 	button:SetID(i)
 	button.buttonType = info.binding
 	button.commandName = info.binding .. i          -- lets Quick Keybind mode bind this button
-	button:SetAttribute("actionpage", info.page)    -- fixed page: the whole "no state" design
+	if info.followsForms then
+		-- Blizzard's state manager sets the page itself, in combat too; the button
+		-- redraws on the attribute change. Not a snippet, so it works on Forever.
+		RegisterAttributeDriver(button, "actionpage", FORM_PAGES .. info.page)
+	else
+		button:SetAttribute("actionpage", info.page)
+	end
 	button:UpdateHotkeys(button.buttonType)
 
+	-- Same ID, and the page from the button, so a keypress uses the slot the button shows.
 	local key = CreateFrame("Button", "$parentKey", button, "SecureActionButtonTemplate")
+	key:SetID(i)
 	key:SetAttribute("type", "action")
 	key:SetAttribute("typerelease", "actionrelease")
-	key:SetAttribute("action", (info.page - 1) * ACTION_BUTTONS + i)
-	for _, attr in ipairs({ "checkselfcast", "checkfocuscast", "checkmouseovercast", "unit", "pressAndHoldAction" }) do
+	for _, attr in ipairs({ "actionpage", "checkselfcast", "checkfocuscast", "checkmouseovercast", "unit", "pressAndHoldAction" }) do
 		key:SetAttribute("useparent-" .. attr, true)
 	end
 	key:RegisterForClicks("AnyUp", "AnyDown")

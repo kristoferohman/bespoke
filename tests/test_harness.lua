@@ -26,8 +26,16 @@ local function NewEnv(opts)
 			f.w, f.h = 45, 45
 			f.attrs.type = "action"; f.attrs["useparent-actionpage"] = true
 			f.UpdateHotkeys = function(self, bt) self.hotkeyType = bt end
-			-- Blizzard: actionpage recalculates self.action; UpdateUsable tints the icon
-			f.SetAttribute = function(self, k, v) Frame.SetAttribute(self, k, v); if k == "actionpage" then self.action = env.slotOf(self) end end
+			-- Blizzard: any attribute change recalculates self.action (UpdateAction), and a
+			-- new action redraws (Update -> UpdateUsable, which tints the icon)
+			f.SetAttribute = function(self, k, v)
+				Frame.SetAttribute(self, k, v)
+				local action = env.slotOf(self)
+				if action ~= self.action then
+					self.action = action
+					if env.C_ActionBar.HasAction(action) then self:UpdateUsable() end
+				end
+			end
 			f.icon = { SetVertexColor = function(self, r, g, b) self.color = ("%.2f,%.2f,%.2f"):format(r, g, b) end }
 			f.UpdateUsable = function(self)
 				env.usableCalls = env.usableCalls + 1
@@ -247,6 +255,38 @@ local function NewEnv(opts)
 		if env.combat then env.blocked[#env.blocked + 1] = "UnregisterStateDriver in combat" end
 		f.visDriver = nil
 	end
+	-- Blizzard's SecureStateDriverManager: sets the attribute itself (no snippet), at
+	-- registration and on every rescan; numbers arrive as numbers (resolveDriver).
+	-- SecureCmdOptionParse here knows only [bonusbar:N] clauses and a bare default.
+	env.bonusBar = 0 -- GetBonusBarOffset(): cat 1, prowl 2, bear 3, moonkin 4
+	env.attrDrivers = {}
+	local function optionParse(values)
+		for clause in values:gmatch("[^;]+") do
+			local n, v = clause:match("^%[bonusbar:(%d+)%](.+)$")
+			if n then
+				if tonumber(n) == env.bonusBar then return v end
+			else
+				assert(not clause:find("%["), "unsupported condition in " .. values)
+				return clause
+			end
+		end
+	end
+	local function resolveDriver(d)
+		local v = optionParse(d.values)
+		v = tonumber(v) or v
+		if d.frame:GetAttribute(d.attr) ~= v then d.frame:SetAttribute(d.attr, v) end
+	end
+	env.RegisterAttributeDriver = function(f, attr, values)
+		if env.combat then env.blocked[#env.blocked + 1] = "RegisterAttributeDriver in combat" end
+		local d = { frame = f, attr = attr, values = values }
+		env.attrDrivers[#env.attrDrivers + 1] = d
+		resolveDriver(d)
+	end
+	-- shift form: the game changes the bonus bar, the state manager rescans
+	env.shift = function(offset)
+		env.bonusBar = offset
+		for _, d in ipairs(env.attrDrivers) do resolveDriver(d) end
+	end
 	env.WorldFrame = make("Frame", "WorldFrame")
 	env.GetMouseFoci = function() return { env.mouseFocus or env.WorldFrame } end
 	env.InCombatLockdown = function() return env.combat end
@@ -316,8 +356,23 @@ local function NewEnv(opts)
 	env.fire = function(e) events.scripts.OnEvent(events, e) end
 	env.fireAll = function(e) for _, f in ipairs(frames) do if f.events[e] and f.scripts.OnEvent then f.scripts.OnEvent(f, e) end end end
 	env.slash = function(msg) env.SlashCmdList.BESPOKE(msg) end
-	-- Blizzard's SecureActionButtonMixin:CalculateAction for an ID > 0 button
-	env.slotOf = function(b) return b:GetID() + ((b:GetAttribute("actionpage") - 1) * 12) end
+	-- Blizzard's SecureButton_GetModifiedAttribute: useparent-<name> asks frame.bar or the parent
+	local function modifiedAttribute(f, name)
+		local v = f:GetAttribute(name)
+		if v == nil and (f:GetAttribute("useparent-" .. name) or f:GetAttribute("useparent*")) then
+			local parent = f.bar or f:GetParent()
+			if parent then v = modifiedAttribute(parent, name) end
+		end
+		return v
+	end
+	-- Blizzard's SecureActionButtonMixin:CalculateAction: the slot a click or keypress uses
+	env.slotOf = function(b)
+		if b:GetID() > 0 then
+			local page = modifiedAttribute(b, "actionpage") or 1 -- C_ActionBar.GetActionBarPage()
+			return b:GetID() + (page - 1) * 12
+		end
+		return modifiedAttribute(b, "action") or 1
+	end
 	-- Blizzard's range and usable watcher frames pass a slot's event to every button on it
 	local function buttonsOn(slot)
 		local list = {}
@@ -356,7 +411,7 @@ for id = 1, 5 do
 		local b = env[("BespokeBar%dButton%d"):format(id, i)]
 		local expected = EXPECTED_SLOTS[id] + i
 		check(env.slotOf(b) == expected, ("bar %d button %d slot %d, want %d"):format(id, i, env.slotOf(b), expected))
-		check(b.key:GetAttribute("action") == expected, ("bar %d button %d key slot"):format(id, i))
+		check(env.slotOf(b.key) == expected, ("bar %d button %d key slot"):format(id, i))
 		check(b.key:GetAttribute("type") == "action", "key type action")
 		check(b.key.clicks[1] == "AnyUp" and b.key.clicks[2] == "AnyDown", "key registered for down+up")
 	end
@@ -1129,6 +1184,46 @@ QO.BagsBar:Layout()
 check(math.abs(centerX(QO.MainMenuBarBackpackButton) - qo0) < 1e-6, "an older profile's backpack stays put when the key ring appears")
 local qoCfg = P(QO).bags
 check(qoCfg.point == "TOPRIGHT" and qoCfg.showBags and qoCfg.showReagent and qoCfg.growLeft, "older profiles gain the bag settings, anchored on the backpack's side")
+
+------------------------------------------------------------------ 1.7: bar 1 follows forms, stances and stealth
+-- Blizzard's main bar: on page 1, bonus bar N (cat 1, prowl 2, bear 3, moonkin 4) shows page 6 + N.
+-- Only bar 1 does; bars 2-8 stay on their own pages.
+local D = NewEnv({ char = "Druid", bindings = { ACTIONBUTTON1 = { "1" }, MULTIACTIONBAR1BUTTON1 = { "CTRL-1" } } })
+D.fire("PLAYER_LOGIN")
+for id = 6, 8 do D.slash("bar " .. id .. " on") end
+local FORMS = { [0] = "caster", "cat", "prowl", "bear", "moonkin", "bonus bar 5" }
+local function barsFollow(e, offset, when)
+	local wrong
+	for id = 1, 8 do
+		local first = (id == 1 and offset > 0) and (5 + offset) * 12 or EXPECTED_SLOTS[id]
+		for i = 1, 12 do
+			local b = e[("BespokeBar%dButton%d"):format(id, i)]
+			if not wrong and (e.slotOf(b) ~= first + i or b.action ~= first + i or e.slotOf(b.key) ~= first + i) then
+				wrong = ("bar %d button %d: shows %s, clicks %s, key %s, want %d"):format(id, i,
+					tostring(b.action), tostring(e.slotOf(b)), tostring(e.slotOf(b.key)), first + i)
+			end
+		end
+	end
+	check(wrong == nil, ("%s%s: bar 1 on its form page, bars 2-8 unchanged (%s)"):format(FORMS[offset], when or "", tostring(wrong)))
+end
+for offset = 0, 5 do D.shift(offset); barsFollow(D, offset) end
+D.shift(0)
+barsFollow(D, 0, ", back from forms")
+check(D.overrides["1"].name == "BespokeBar1Button1Key" and D.overrides["CTRL-1"].name == "BespokeBar2Button1Key", "keybinds still go to the same buttons")
+D.combat = true
+D.shift(3)
+barsFollow(D, 3, " in combat")
+D.shift(1)
+barsFollow(D, 1, " in combat")
+D.combat = false
+D.shift(0)
+-- the color option repaints for the form's action
+D.slash("color on")
+D.usable[97] = { false, true } -- bear bar (page 9) slot 1: not enough rage
+D.shift(3)
+check(D.BespokeBar1Button1.icon.color == BLUE, "a form's out-of-power action is colored when bar 1 changes to it")
+D.shift(0)
+check(D.BespokeBar1Button1.icon.color == NORMAL, "and caster bar 1 is back to normal")
 
 for i, e in ipairs(ALL_ENVS) do
 	local stray

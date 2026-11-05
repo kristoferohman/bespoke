@@ -1,10 +1,12 @@
 # Bespoke
 
 Light, stateless action bars for **World of Warcraft: Forever** (interface `16001`).
-No libraries, no paging, no secure snippets.
+No libraries, no secure snippets.
 
 Bars: action bars 1–8 (Blizzard's Action Bars 1–8: same spell slots, same keybindings),
-pet bar, stance bar, bag bar and micro menu. Per bar: show/hide, columns or rows,
+pet bar, stance bar, bag bar and micro menu. Like Blizzard's, bar 1 changes with forms,
+stances and stealth (cat, bear, prowl, warrior stances); bars 2–8 always keep their own
+actions. Bespoke ignores Shift+1–6 page switching. Per bar: show/hide, columns or rows,
 grow up/down, scale (40–200%), padding (−2 to 20), fade until mouseover.
 The bag bar can leave out bags 1–4 and the reagent bag (backpack and key ring always show)
 and put the bags on either side of the backpack.
@@ -130,10 +132,14 @@ The workflow stops with a clear message if either is missing, rather than skippi
   omits `camelot` from its dependency on `Blizzard_RestrictedAddOnEnvironment`, so
   `loadstring_untainted` is removed (`EnvironmentCleanup.lua:279`) before the
   restricted environment captures it. Bespoke avoids snippets entirely:
-  action buttons use a fixed `actionpage` resolved by Blizzard's own secure code.
+  action buttons use an `actionpage` resolved by Blizzard's own secure code.
 - **Visibility drivers are safe** (`RegisterStateDriver(frame, "visibility", ...)`):
   Blizzard's state manager shows/hides the frame directly, with no snippet. Used for
   the pet bar.
+- **Attribute drivers take the same path** (`RegisterAttributeDriver`): the state manager's
+  `resolveDriver` sets the attribute with `frame:SetAttribute`, again with no snippet. Bar 1's
+  buttons use one for `actionpage` (`[bonusbar:N]` → page 6 + N), and the button redraws on
+  the attribute change. Read in the source (build 70790), not yet confirmed in game.
 - `GetMouseFocus()` doesn't exist; use `GetMouseFoci()`.
 - Blizzard's micro menu errors (`GetEdgeButton`) if only unpositioned, hidden buttons
   remain in it: take all of its `layoutIndex` buttons, hidden ones first.
