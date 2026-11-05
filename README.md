@@ -18,7 +18,8 @@ Optionally, a button turns red when out of range and blue when out of mana.
 1. Install from CurseForge (WoW: Forever), or download `v<version>.zip`
    from the [Releases](../../releases) page.
 2. Unzip it into your Forever client's `Interface/AddOns` folder, so you have
-   `Interface/AddOns/Bespoke/Bespoke.toc`. On the beta that's under `_classic_beta_`.
+   `Interface/AddOns/Bespoke/Bespoke.toc`. The Forever client is the `_forever_` folder
+   in your World of Warcraft install.
 3. Remove other action bar addons (they'd fight over Blizzard's bars), then log in.
 
 ## Use
@@ -64,7 +65,7 @@ Link the repository into the Forever client as `Bespoke`, so edits show up after
 so the tests and docs in the folder are ignored:
 
 ```sh
-ln -s "$PWD" "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/Bespoke"
+ln -s "$PWD" "/Applications/World of Warcraft/_forever_/Interface/AddOns/Bespoke"
 ```
 
 If the client doesn't pick up the symlink, copy the folder instead.
@@ -139,7 +140,7 @@ The workflow stops with a clear message if either is missing, rather than skippi
 - **Attribute drivers take the same path** (`RegisterAttributeDriver`): the state manager's
   `resolveDriver` sets the attribute with `frame:SetAttribute`, again with no snippet. Bar 1's
   buttons use one for `actionpage` (`[bonusbar:N]` → page 6 + N), and the button redraws on
-  the attribute change. Read in the source (build 70790), not yet confirmed in game.
+  the attribute change. Confirmed in game on build 70790.
 - `GetMouseFocus()` doesn't exist; use `GetMouseFoci()`.
 - Blizzard's micro menu errors (`GetEdgeButton`) if only unpositioned, hidden buttons
   remain in it: take all of its `layoutIndex` buttons, hidden ones first.
