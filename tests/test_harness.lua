@@ -258,7 +258,7 @@ local function NewEnv(opts)
 	-- Blizzard's SecureStateDriverManager: sets the attribute itself (no snippet), at
 	-- registration and on every rescan; numbers arrive as numbers (resolveDriver).
 	-- SecureCmdOptionParse here knows only [bonusbar:N] clauses and a bare default.
-	env.bonusBar = 0 -- GetBonusBarOffset(): cat 1, prowl 2, bear 3, moonkin 4
+	env.bonusBar = 0 -- GetBonusBarOffset(): cat 1 (prowling too), bear 3, moonkin 4
 	env.attrDrivers = {}
 	local function optionParse(values)
 		for clause in values:gmatch("[^;]+") do
@@ -1186,12 +1186,13 @@ local qoCfg = P(QO).bags
 check(qoCfg.point == "TOPRIGHT" and qoCfg.showBags and qoCfg.showReagent and qoCfg.growLeft, "older profiles gain the bag settings, anchored on the backpack's side")
 
 ------------------------------------------------------------------ 1.7: bar 1 follows forms, stances and stealth
--- Blizzard's main bar: on page 1, bonus bar N (cat 1, prowl 2, bear 3, moonkin 4) shows page 6 + N.
+-- Blizzard's main bar: on page 1, bonus bar N (cat 1, bear 3, moonkin 4) shows page 6 + N.
+-- Prowl has no bonus bar of its own; a stealth condition in a driver fails optionParse.
 -- Only bar 1 does; bars 2-8 stay on their own pages.
 local D = NewEnv({ char = "Druid", bindings = { ACTIONBUTTON1 = { "1" }, MULTIACTIONBAR1BUTTON1 = { "CTRL-1" } } })
 D.fire("PLAYER_LOGIN")
 for id = 6, 8 do D.slash("bar " .. id .. " on") end
-local FORMS = { [0] = "caster", "cat", "prowl", "bear", "moonkin", "bonus bar 5" }
+local FORMS = { [0] = "caster", "cat", "bonus bar 2", "bear", "moonkin", "bonus bar 5" }
 local function barsFollow(e, offset, when)
 	local wrong
 	for id = 1, 8 do

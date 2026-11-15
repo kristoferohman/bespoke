@@ -5,9 +5,10 @@ No libraries, no secure snippets.
 
 Bars: action bars 1–8 (Blizzard's Action Bars 1–8: same spell slots, same keybindings),
 pet bar, stance bar, bag bar and micro menu. Like Blizzard's, bar 1 changes with forms,
-stances and stealth (cat, bear, prowl, warrior stances); bars 2–8 always keep their own
-actions. Bespoke ignores Shift+1–6 page switching. Per bar: show/hide, columns or rows,
-grow up/down, scale (40–200%), padding (−2 to 20), fade until mouseover.
+stances and stealth (cat, bear, warrior stances; prowling keeps the cat bar); bars 2–8
+always keep their own actions. Bespoke ignores Shift+1–6 page switching. Per bar:
+show/hide, columns or rows, grow up/down, scale (40–200%), padding (−2 to 20), fade until
+mouseover.
 The bag bar can leave out bags 1–4 and the reagent bag (backpack and key ring always show)
 and put the bags on either side of the backpack.
 Named profiles shared across characters, with a choice of profile for new characters.
@@ -141,6 +142,8 @@ The workflow stops with a clear message if either is missing, rather than skippi
   `resolveDriver` sets the attribute with `frame:SetAttribute`, again with no snippet. Bar 1's
   buttons use one for `actionpage` (`[bonusbar:N]` → page 6 + N), and the button redraws on
   the attribute change. Confirmed in game on build 70790.
+- Prowl has no bonus bar of its own: a prowling cat stays on bonus bar 1, so bar 1 keeps
+  the cat page, as Blizzard's main bar does (retail dropped the prowl bar in 10.0).
 - `GetMouseFocus()` doesn't exist; use `GetMouseFoci()`.
 - Blizzard's micro menu errors (`GetEdgeButton`) if only unpositioned, hidden buttons
   remain in it: take all of its `layoutIndex` buttons, hidden ones first.
